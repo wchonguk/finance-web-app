@@ -1,65 +1,54 @@
+import { redirect } from "next/navigation"
 import { Header } from "@/components/dashboard/header"
-import { StatsCards } from "@/components/dashboard/stats-cards"
-import { CashFlowChart } from "@/components/dashboard/cash-flow-chart"
-import { ExpenseChart } from "@/components/dashboard/expense-chart"
-import { RecentInvoices } from "@/components/dashboard/recent-invoices"
-import { QuickActions } from "@/components/dashboard/quick-actions"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { Footer } from "@/components/dashboard/footer"
-import { Button } from "@/components/ui/button"
-import { Download, Plus } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { auth } from "@/auth"
+import { ensureUser } from "@/lib/repositories/users-repository"
+import { getDashboardSummary } from "@/lib/services/dashboard-service"
 
-export default function Dashboard() {
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value)
+}
+
+export default async function DashboardPage() {
+  const session = await auth()
+  if (!session?.user?.id) {
+    redirect("/login")
+  }
+
+  const dbUserId = await ensureUser(session.user.id, session.user.email ?? null, session.user.name ?? null)
+  const summary = await getDashboardSummary(dbUserId)
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header />
+      <Header userName={session.user.name ?? "User"} />
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold">Financial Overview</h1>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Title Section */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Financial Overview</h1>
-            <p className="mt-1 text-muted-foreground">
-              Welcome back, Jane Doe. Here is what&apos;s happening with LedgerFlow
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Export Report
-            </Button>
-            <Button className="gap-2 bg-slate-900 hover:bg-slate-800">
-              <Plus className="h-4 w-4" />
-              Create Invoice
-            </Button>
-          </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card><CardHeader><CardTitle>Income (MTD)</CardTitle></CardHeader><CardContent>{formatCurrency(summary.totalIncome)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>Expenses (MTD)</CardTitle></CardHeader><CardContent>{formatCurrency(summary.totalExpenses)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>Net (MTD)</CardTitle></CardHeader><CardContent>{formatCurrency(summary.net)}</CardContent></Card>
+          <Card><CardHeader><CardTitle>Transactions</CardTitle></CardHeader><CardContent>{summary.transactionCount}</CardContent></Card>
         </div>
 
-        {/* Stats Cards */}
-        <StatsCards />
-
-        {/* Charts Section */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <CashFlowChart />
-          </div>
-          <div>
-            <ExpenseChart />
-          </div>
-        </div>
-
-        {/* Bottom Section */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <RecentInvoices />
-          </div>
-          <div className="space-y-6">
-            <QuickActions />
-            <RecentActivity />
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {summary.recent.map((item) => (
+                <li key={`${item.description}-${item.transactionDate}`} className="flex items-center justify-between rounded-md border p-3">
+                  <span>{item.description}</span>
+                  <span className={item.type === "expense" ? "text-red-600" : "text-emerald-600"}>{formatCurrency(item.amount)}</span>
+                </li>
+              ))}
+              {!summary.recent.length && <li className="text-muted-foreground">No transactions yet.</li>}
+            </ul>
+          </CardContent>
+        </Card>
       </main>
-
       <Footer />
     </div>
   )

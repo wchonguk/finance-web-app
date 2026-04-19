@@ -1,0 +1,45 @@
+CREATE TABLE dbo.Users (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  ExternalId NVARCHAR(128) NOT NULL UNIQUE,
+  Email NVARCHAR(255) NULL,
+  DisplayName NVARCHAR(255) NULL,
+  CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE dbo.Categories (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  Name NVARCHAR(100) NOT NULL UNIQUE,
+  CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+);
+
+CREATE TABLE dbo.Transactions (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  UserId INT NOT NULL,
+  CategoryId INT NOT NULL,
+  Amount DECIMAL(18,2) NOT NULL,
+  Description NVARCHAR(255) NOT NULL,
+  Type NVARCHAR(20) NOT NULL CHECK (Type IN ('income', 'expense')),
+  TransactionDate DATETIME2 NOT NULL,
+  CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT FK_Transactions_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id),
+  CONSTRAINT FK_Transactions_Categories FOREIGN KEY (CategoryId) REFERENCES dbo.Categories(Id)
+);
+
+CREATE TABLE dbo.Budgets (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  UserId INT NOT NULL,
+  CategoryId INT NOT NULL,
+  MonthlyLimit DECIMAL(18,2) NOT NULL,
+  Month INT NOT NULL,
+  Year INT NOT NULL,
+  CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT FK_Budgets_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(Id),
+  CONSTRAINT FK_Budgets_Categories FOREIGN KEY (CategoryId) REFERENCES dbo.Categories(Id),
+  CONSTRAINT UQ_Budget_User_Category_Period UNIQUE (UserId, CategoryId, Month, Year)
+);
+
+INSERT INTO dbo.Categories (Name)
+VALUES ('Salary'), ('Rent'), ('Utilities'), ('Food'), ('Marketing'), ('Software');
